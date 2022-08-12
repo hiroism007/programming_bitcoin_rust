@@ -1,18 +1,16 @@
 use std::fmt;
-use std::fmt::Debug;
-use std::ops::{Add, Sub, Rem, Div, Mul};
+use std::fmt::{Debug, Display};
+use std::ops::{Add, Div, Mul, Rem, Sub};
 
 #[derive(Clone, Copy, Debug)]
-pub struct FieldElement<T>
-where T: Add<Output = T>,
-{
+pub struct FieldElement<T> {
     pub num: T,
     pub prime: T,
 }
 
-impl <T> FieldElement<T>
-    where
-        T: PartialOrd + Debug + Add<Output = T>,
+impl<T> FieldElement<T>
+where
+    T: PartialOrd + Debug,
 {
     pub fn new(num: T, prime: T) -> Self {
         if num >= prime {
@@ -22,48 +20,88 @@ impl <T> FieldElement<T>
     }
 }
 
+impl<T> FieldElement<T>
+where
+    T: Add<Output = T>
+        + Sub<Output = T>
+        + Div<Output = T>
+        + Mul<Output = T>
+        + Rem<Output = T>
+        + PartialOrd
+        + Debug
+        + Display
+        + Copy,
+{
+    fn pow(self, exponent: T) -> Self {
+        let zero = self.prime - self.prime;
+        let one = self.prime / self.prime;
 
-impl <T> fmt::Display for FieldElement<T>
-    where
-        T: fmt::Display + Add<Output = T> + Sub<Output = T> + Rem<Output = T>,
+        let mut ret = Self::new(one, self.prime);
+        println!("Initial FieldElement ret = {}", ret);
+        println!("exponent = {}", exponent);
+        let mut counter = exponent % (self.prime - one);
+        println!("Counter = {:?}", counter);
+
+        while counter > zero {
+            ret = ret * self;
+            println!("Result FieldElement ret = {}", ret);
+            counter = counter - one;
+        }
+        ret
+    }
+}
+
+impl<T> fmt::Display for FieldElement<T>
+where
+    T: fmt::Display + Add<Output = T> + Sub<Output = T> + Rem<Output = T>,
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "FieldElement_{}({})", self.prime, self.num)
     }
 }
 
-impl <T> Add for FieldElement<T>
-where T: PartialEq + Add<Output = T>  + Rem<Output = T> +PartialOrd + Debug + Copy,
+impl<T> Add for FieldElement<T>
+where
+    T: PartialEq + Add<Output = T> + Rem<Output = T> + PartialOrd + Debug + Copy,
 {
     type Output = Self;
 
-    fn add(self, other:Self) -> Self::Output {
+    fn add(self, other: Self) -> Self::Output {
         if self.prime != other.prime {
             panic!("Prime number should be same")
         }
         if self.num + other.num >= self.prime {
-            Self::new((self.num + other.num)% self.prime, self.prime)
+            Self::new((self.num + other.num) % self.prime, self.prime)
         } else {
             Self::new(self.num + other.num, self.prime)
         }
     }
 }
 
-impl <T> Sub for FieldElement<T>
-    where T: PartialEq  + Add<Output = T>  + Sub<Output = T> + Rem<Output = T> + PartialOrd + Debug + Copy,
+impl<T> Sub for FieldElement<T>
+where
+    T: PartialEq + Sub<Output = T> + Rem<Output = T> + PartialOrd + Debug + Copy,
 {
     type Output = Self;
 
-    fn sub(self, other:Self) -> Self::Output {
+    fn sub(self, other: Self) -> Self::Output {
         if self.prime != other.prime {
             panic!("Prime number should be same")
         }
-        Self::new((self.num - other.num)%self.prime, self.prime)
+        Self::new((self.num - other.num) % self.prime, self.prime)
     }
 }
 
-impl <T> Mul for FieldElement<T>
-    where T: PartialEq + Add<Output = T> + Sub<Output = T> + Rem<Output = T> + Div<Output = T> + PartialOrd + Debug + Copy,
+impl<T> Mul for FieldElement<T>
+where
+    T: PartialEq
+        + Add<Output = T>
+        + Sub<Output = T>
+        + Rem<Output = T>
+        + Div<Output = T>
+        + PartialOrd
+        + Debug
+        + Copy,
 {
     type Output = Self;
     fn mul(self, other: Self) -> Self::Output {
@@ -71,7 +109,7 @@ impl <T> Mul for FieldElement<T>
             panic!("Prime number should be same")
         }
 
-        let zero =  self.prime - other.prime;
+        let zero = self.prime - other.prime;
         let one = self.prime / other.prime;
         let mut counter = other.num;
 
@@ -84,9 +122,30 @@ impl <T> Mul for FieldElement<T>
     }
 }
 
+impl<T> Div for FieldElement<T>
+where
+    T: Add<Output = T>
+        + Sub<Output = T>
+        + Div<Output = T>
+        + Mul<Output = T>
+        + Rem<Output = T>
+        + PartialOrd
+        + Debug
+        + Display
+        + Copy,
+{
+    type Output = Self;
 
-impl <T>PartialEq for FieldElement<T>
-    where T: PartialEq + Add<Output = T>,
+    fn div(self, other: Self) -> Self::Output {
+        let p = self.prime;
+        let one = p / p;
+        self * other.pow(p - one - one)
+    }
+}
+
+impl<T> PartialEq for FieldElement<T>
+where
+    T: PartialEq + Add<Output = T>,
 {
     fn eq(&self, other: &Self) -> bool {
         self.prime == other.prime && self.num == other.num
@@ -132,5 +191,22 @@ mod tests {
         println!("FieldElement A = {}", a);
 
         assert_eq!(a * b, c);
+    }
+
+    #[test]
+    fn pow() {
+        let a = FieldElement::new(U256::from(3), U256::from(13));
+        let b = FieldElement::new(U256::from(1), U256::from(13));
+
+        assert_eq!(a.pow(U256::from(3)), b);
+    }
+
+    #[test]
+    fn div() {
+        let a = FieldElement::new(U256::from(7), U256::from(19));
+        let b = FieldElement::new(U256::from(5), U256::from(19));
+        let c = FieldElement::new(U256::from(9), U256::from(19));
+
+        assert_eq!(a / b, c);
     }
 }
