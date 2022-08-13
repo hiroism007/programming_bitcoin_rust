@@ -1,5 +1,5 @@
 use std::fmt;
-use std::fmt::{Debug, Display};
+use std::fmt::{Debug, Display, Formatter};
 use std::ops::{Add, Div, Mul, Rem, Sub};
 
 #[derive(Clone, Copy, Debug)]
@@ -154,9 +154,44 @@ where
 
 impl<T> Eq for FieldElement<T> where T: Eq + Add<Output = T> {}
 
+// Elliptic Curve: y^2 = x^3 + a*x + b
+#[derive(Clone, Debug, PartialEq)]
+pub enum Point<T> {
+    Coordinate { x: T, y: T, a: T, b: T },
+    Infinity,
+}
+impl<T> fmt::Display for Point<T>
+where
+    T: fmt::Display,
+{
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match &self {
+            &Point::Coordinate { x, y, a, b } => {
+                write!(f, "Point({}, {})_{}_{}", x, y, a, b)
+            }
+            &Point::Infinity => {
+                write!(f, "Point(Infinity)")
+            }
+        }
+    }
+}
+
+impl<T> Point<T>
+where
+    T: Add<Output = T> + Mul<Output = T> + PartialEq + Copy,
+{
+    pub fn new(x: T, y: T, a: T, b: T) -> Self {
+        if y * y != x * x * x + a * x + b {
+            panic!("This is invalid number")
+        }
+        Self::Coordinate { x, y, a, b }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::FieldElement;
+    use super::Point;
     use primitive_types::U256;
 
     #[test]
@@ -208,5 +243,18 @@ mod tests {
         let c = FieldElement::new(U256::from(9), U256::from(19));
 
         assert_eq!(a / b, c);
+    }
+
+    #[test]
+    fn new() {
+        let _ = Point::new(U256::from(18), U256::from(77), U256::from(5), U256::from(7));
+    }
+
+    #[test]
+    fn eq_elliptic() {
+        let a = Point::new(U256::from(18), U256::from(77), U256::from(5), U256::from(7));
+        let b = Point::new(U256::from(18), U256::from(77), U256::from(5), U256::from(7));
+
+        assert!(a == b);
     }
 }
