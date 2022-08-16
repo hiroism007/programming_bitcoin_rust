@@ -1,5 +1,5 @@
 use std::fmt;
-use std::fmt::{Debug, Display, Formatter};
+use std::fmt::{Debug, Display};
 use std::ops::{Add, Div, Mul, Rem, Sub};
 
 #[derive(Clone, Copy, Debug)]

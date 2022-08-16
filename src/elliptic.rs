@@ -1,6 +1,6 @@
 use std::fmt;
-use std::fmt::{Debug, Display, Formatter};
-use std::ops::{Add, Div, Mul, Rem, Sub};
+use std::fmt::{Debug, Formatter};
+use std::ops::{Add, Div, Mul, Sub};
 
 // Elliptic Curve: y^2 = x^3 + a*x + b
 #[derive(Clone, Debug, PartialEq)]
@@ -107,10 +107,31 @@ where
     }
 }
 
+impl<T, U> Mul<U> for Point<T>
+where
+    T: Add<Output = T> + Sub<Output = T> + Div<Output = T> + Mul<Output = T> + PartialOrd + Copy,
+    U: Sub<Output = U> + Div<Output = U> + Mul<Output = U> + PartialOrd + Copy,
+{
+    type Output = Self;
+
+    fn mul(self, other: U) -> Self::Output {
+        let zero = other - other;
+        let one = other / other;
+
+        let mut counter = other;
+        let mut ret = Self::Infinity;
+
+        while counter > zero {
+            ret = ret + self.clone();
+            counter = counter - one;
+        }
+        ret
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::Point;
-    use crate::field_element;
     use crate::field_element::FieldElement;
     use primitive_types::U256;
 
@@ -127,6 +148,7 @@ mod tests {
         assert_eq!(a, b);
     }
 
+    #[test]
     fn point_on_elliptic_curve() {
         let a = FieldElement::new(U256::from(0), U256::from(223));
         let b = FieldElement::new(U256::from(7), U256::from(223));
@@ -134,5 +156,15 @@ mod tests {
         let y = FieldElement::new(U256::from(105), U256::from(223));
 
         assert_eq!(y * y, x * x * x + a * x + b);
+    }
+
+    #[test]
+    fn mul() {
+        let p0 = Point::new(2, 5, 5, 7);
+        let p1 = Point::new(2, -5, 5, 7);
+
+        assert_ne!(p0, p1);
+        assert_eq!(p0.clone() * 3, p1);
+        assert_eq!(p0 * U256::from(3), p1);
     }
 }
