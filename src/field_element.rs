@@ -20,37 +20,6 @@ where
     }
 }
 
-impl<T> FieldElement<T>
-where
-    T: Add<Output = T>
-        + Sub<Output = T>
-        + Div<Output = T>
-        + Mul<Output = T>
-        + Rem<Output = T>
-        + PartialOrd
-        + Debug
-        + Display
-        + Copy,
-{
-    fn pow(self, exponent: T) -> Self {
-        let zero = self.prime - self.prime;
-        let one = self.prime / self.prime;
-
-        let mut ret = Self::new(one, self.prime);
-        println!("Initial FieldElement ret = {}", ret);
-        println!("exponent = {}", exponent);
-        let mut counter = exponent % (self.prime - one);
-        println!("Counter = {:?}", counter);
-
-        while counter > zero {
-            ret = ret * self;
-            println!("Result FieldElement ret = {}", ret);
-            counter = counter - one;
-        }
-        ret
-    }
-}
-
 impl<T> fmt::Display for FieldElement<T>
 where
     T: fmt::Display + Add<Output = T> + Sub<Output = T> + Rem<Output = T>,
@@ -153,6 +122,31 @@ where
 }
 
 impl<T> Eq for FieldElement<T> where T: Eq + Add<Output = T> {}
+
+impl<T> FieldElement<T>
+where
+    T: Add<Output = T>
+        + Mul<Output = T>
+        + Sub<Output = T>
+        + Div<Output = T>
+        + Rem<Output = T>
+        + PartialOrd
+        + Debug
+        + Copy,
+{
+    fn pow(self, exponent: T) -> Self {
+        let zero = self.prime - self.prime;
+        let one = self.prime / self.prime;
+        let mut ret = FieldElement::new(one, self.prime);
+        let mut counter = exponent % (self.prime - one);
+
+        while counter > zero {
+            ret = ret * self;
+            counter = counter - one;
+        }
+        ret
+    }
+}
 
 #[cfg(test)]
 mod tests {

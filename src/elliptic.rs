@@ -133,7 +133,8 @@ where
 mod tests {
     use super::Point;
     use crate::field_element::FieldElement;
-    use primitive_types::U256;
+    use primitive_types::{U256, U512};
+    use sha2::Sha256;
 
     #[test]
     fn new() {
@@ -166,5 +167,61 @@ mod tests {
         assert_ne!(p0, p1);
         assert_eq!(p0.clone() * 3, p1);
         assert_eq!(p0 * U256::from(3), p1);
+    }
+
+    #[test]
+    fn on_the_curve() {
+        let p = U512::from_str_radix(
+            "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F",
+            16,
+        )
+        .unwrap();
+        let x = U512::from_str_radix(
+            "79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798",
+            16,
+        )
+        .unwrap();
+        let y = U512::from_str_radix(
+            "483ADA7726A3C4655DA4FBFC0E1108A8FD17B448A68554199C47D08FFB10D4B8",
+            16,
+        )
+        .unwrap();
+        let n = U512::from_str_radix(
+            "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141",
+            16,
+        )
+        .unwrap();
+
+        let a = FieldElement::new(U512::from(0), p);
+        let b = FieldElement::new(U512::from(7), p);
+        let gx = FieldElement::new(x, p);
+        let gy = FieldElement::new(y, p);
+
+        fn make_hash(source: &[u8]) -> U512 {
+            let mut hasher = Sha256::new();
+            hasher.update(source);
+            U512::from(&hasher.finalize()[..])
+        }
+
+        // 署名ハッシュ作成
+        let z = FieldElement::new(make_hash(b"This is my sign"), n);
+
+        // 秘密鍵作成
+        let e = FieldElement::new(make_hash(b"This is my secret"), n);
+
+        // 乱数kを生成
+        use rand::Rng;
+        let mut rng = rand::thread_rng();
+        let i: i32 = rng.gen();
+        let k = FieldElement::new(U512::from(rng.gen::<i32>()), n);
+
+        let powed = FieldElement::new(n - U512::from(2), n);
+
+        let G = Point::new(gx, gy, a, b);
+        let r = (G * k).x;
+        let mut k_inv = (FieldElement::new(k, n)).pow(powed);
+        let s = (z + r * e) * k_inv;
+
+        let P = G * e;
     }
 }
